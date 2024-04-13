@@ -132,3 +132,16 @@
 - 成功部屬到並嘗試瀏覽 URL 時，會發現 main.js 正被嘗試從 bucket root 取得
   - 我們實際上是把東西推到了 `container/latest/` 底下，理所當然沒辦法從 root 取得
   - 設置 `output.publicPath`讓 HTMLWebpackPlugin 在引入 output file 時加上 `/container/latest/`
+
+### Caching
+
+- 在我們更新 Deployment 並重整頁面後，會發現 HTML 並沒有被更新
+- 問題出在 Cloudfront 運作方式，在更新 Distribution 時，Cloudfront 只會看有沒有增加刪除檔案，但不會主動去查看檔案是否有變動
+  - 只有 HTML 並沒有加上 hash，因此並不會知道裡面有所變更
+- 到 AWS Cloudfront 進行 Invalidation (手動)
+  - 點選當個 Distribution 並進到 Invalidations Tab
+  - Create invalidation -> `/container/latest/index.html`
+  - Create Invalidation
+- 到 workflow 裡面自動化 Invalidation 流程
+  - 這裡會發現 env 被重複設定，的確可以把它移動到最上面讓大家都能存取，但同時也代表其他不需要的動作也能存取
+  - 因此還是建議在需要的地方設定重複就好
