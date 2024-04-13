@@ -68,3 +68,61 @@
   2. 下載依賴
   3. 透過 webpack 建立 production build
   4. 將 build result 上傳到 AWS S3
+
+### AWS S3 Bucket
+
+- 預設情況下，所有上傳的資料是私密的，但這裡因為放的是 host files，當然希望他公開
+- 到 properties 中 enable static website hosting
+  - index document - index.html (這裡會被後面 Cloudfront.. 做的設定覆蓋)
+- 到 permissions 中把 Block public access 全部關掉 (跳出的提示可以忽略因為公開內部的資源是我們需要的)
+- 到 permissions 中設定 Bucket Policy，點選 Edit 後點選 Generate Policy 開啟分業進行資料填寫生成 Policy
+  - Type: S3 Bucket Policy
+  - Effect: Allow
+  - Principle: \*
+  - Actions: GetObject
+  - Amazon Resource Name: 到原頁面複製 Bucket ARN 貼過來 + "/\*"
+    - `{Bucket ARN}/*`
+  - Add Statement -> Generate Policy -> Copy
+  - 貼進去原頁面的 Policy -> Save Changes
+- 我們不會直接從 Bucket 中取用資源，而是會透過 Amazon CloudFront (CDN) 取用
+
+### Cloudfront Distribution Setup
+
+- Distribution - 一些我們想要公開外部的檔案
+- 另開一頁處理 Cloudfront (保留原本 Bucket 的 Tab 等等會用到)
+  - Create a CloudFront distribution
+    - Origin Domain Name: 選擇剛剛建立的 S3 Bucket
+    - Default cache behavior 的 Viewer protocol policy: Redirect HTTP to HTTPS
+    - Create Distribution (前面沒提到的都保留預設值就好)
+  - 點選剛剛的 Distribution 並在 General 中的 Settings 點選 Edit (Remapping error)
+    - Default root object: `/container/latest/index.html`
+  - 到 Error pages 中點選 Create custom error response
+    - HTTP error code: 403: Forbidden
+    - Customize error response: yes
+      - Response page path: `/container/latest/index.html`
+    - HTTP Response Code: 200: Ok
+  - 回到 General 看到的 Distribution domain name 就是接下來要請求的路徑
+
+### Github Actions & AWS
+
+- AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY 用來存取我們的 AWS 帳號
+  - 到 AWS Console 中透過 IAM 生成
+    - Users -> Create user
+      - 填寫名字
+      - Next
+      - Permissions options: Attach policies directly
+        - 比較好的方式應該要限制這個使用者能夠存取的特定 Bucket
+      - Permissions policies: AmazonS3FullAccess & CloudFrontFullAccess
+      - Next
+      - Create user
+    - 點進去剛剛建立的 user 並到 Access key 欄位點選 Create access key
+      - Use case: Command Line Interface (CLI)
+      - Check confirmation
+      - Next
+      - Copy secret key
+- AWS_DEFAULT_REGION
+  - 去 S3 中找到 Bucket 並從最後面取得 Region (Ex. ap-southeast-2)
+- 到 github 設定 action yml 中所需要的 secrets
+  - Settings -> Secrets and variables -> Actions
+  - Repository secrets -> New repository secret
+  - 建立 AWS_S3_BUCKET_NAME / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
