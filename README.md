@@ -59,3 +59,12 @@
   - 使用者導覽到某個 URL 時，會從 AWS CloudFront (CDN) 請求資源
   - AWS CloudFront 會知道要從哪個 S3 bucket 取出檔案
     - container:index.js -> container:main.js -> marketing:remoteEntry.js -> marketing:main.js
+
+### CICD (Github Actions)
+
+- workflow (distinct for each sub project) - container
+  - Triggered when code is pushed and commit contains changes to the container folder
+  1. 切到 container 資料夾
+  2. 下載依賴
+  3. 透過 webpack 建立 production build
+  4. 將 build result 上傳到 AWS S3
