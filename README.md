@@ -126,3 +126,9 @@
   - Settings -> Secrets and variables -> Actions
   - Repository secrets -> New repository secret
   - 建立 AWS_S3_BUCKET_NAME / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+
+### Trouble Shooting
+
+- 成功部屬到並嘗試瀏覽 URL 時，會發現 main.js 正被嘗試從 bucket root 取得
+  - 我們實際上是把東西推到了 `container/latest/` 底下，理所當然沒辦法從 root 取得
+  - 設置 `output.publicPath`讓 HTMLWebpackPlugin 在引入 output file 時加上 `/container/latest/`
