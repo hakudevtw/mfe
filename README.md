@@ -135,7 +135,7 @@
 
 ### Caching
 
-- 在我們更新 Deployment 並重整頁面後，會發現 HTML 並沒有被更新
+- 在我們更新 Deployment 並重整頁面後，會發現 HTML 並沒有被更新 (後面 remoteEntry.js 也會遇到一樣的問題)
 - 問題出在 Cloudfront 運作方式，在更新 Distribution 時，Cloudfront 只會看有沒有增加刪除檔案，但不會主動去查看檔案是否有變動
   - 只有 HTML 並沒有加上 hash，因此並不會知道裡面有所變更
 - 到 AWS Cloudfront 進行 Invalidation (手動)
