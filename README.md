@@ -145,3 +145,42 @@
 - 到 workflow 裡面自動化 Invalidation 流程
   - 這裡會發現 env 被重複設定，的確可以把它移動到最上面讓大家都能存取，但同時也代表其他不需要的動作也能存取
   - 因此還是建議在需要的地方設定重複就好
+
+## Styling
+
+- 在 Micro Frontend 的實作中很常遇到 Local 端沒問題但部署上去畫面卻出現問題的狀況
+  - Ex. 在 SPA 的專案底下，頁面 A 使用了 CSS A 沒有問題，跳轉到頁面 B 之後載入了 CSS B，重新跳轉回頁面 A 時，頁面 A 就會吃到 CSS B 的樣式，導致出現樣式衝突
+- 如果是為了統一 Library 所帶來的樣式而全部都要求用同一個版本，會導致後面升級時大家都要升級，違反了一開始 Micro Frontend 的初衷
+
+### Scoping CSS
+
+- CSS-in-JS Library - 透過 JS 動態生成 unique class 並加到元素上
+- Vue 或 Angular 內建的 component style scoping
+- Namespace 所有的 CSS - 在 root element 上加上一層 class，並在選擇棄前面都加上那層 class
+- CSS Modules
+
+### CSS-in-JS Libraries
+
+- 當我們在 sub-projects 中使用相同的 CSS-in-JS Library 時，很有可能出現 class name 衝突，就有可能導致上述範例遇到的問題
+- 以 MUI 的 `makeStyles()` 為例
+  1. `makeStyles({ heroContent: { padding: '20px' } })`
+  2. 取得 JS Object 如 `{ heroContent: 'makeStyles-heroContent-2' }`，這裡的 Value 為某種隨機生成的 class name，會用來加在畫面上的某個 Element
+  3. 與此同時會產生一個對應到上面 class name 的 CSS
+- 會遇到衝突通常會是在打包成 Production 的階段
+  - 在 Production 時，我們通常會希望將這些 CSS class 或 rule 打包成一隻獨立的 CSS Stylesheet
+  - Extract 的過程中通常會希望避免有太長的 class name 來縮減檔案大小
+  - 因此不像 Development 中隨機生成一組 class 的方式，而是產生如 `jss1`、`jss2` ... 這種名稱 (重點是他不是真的隨機！)
+  - 在 Child Project 之間的 Build Process 是分開的，因此很容易的就會產生相同的 class name，導致在 production 組合時出現 class name 之間的相互衝突
+- 通常會提供一些解決方式，如 MUI 就提供了 `generateClassName()` 讓我們設值 `productionPrefix`，也就是在 production 產出的 class name 修改被加上的 prefix 來避免和其他 production build 的衝突
+
+  ```js
+  // App.js
+  createGenerateClassName({ productionPrefix: "ma" });
+  <StylesProvider generateClassName={generateClassName}>
+
+  // Production
+  <div class="ma1"/> // 而不是 js1
+  ```
+
+- 想到 Tailwind 好像也可以做類似的事情 XD
+- 可以的話盡量都加，避免未來出現的衝突，命名上如果能統一其實也蠻方便看得出來是哪個專案來的 class name
