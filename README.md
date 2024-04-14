@@ -1,3 +1,5 @@
+Site: https://d27xpugoy49gze.cloudfront.net
+
 ## 專案需求
 
 - 網路上的一些其他見解 (以 React 為例，可以參考就好)
