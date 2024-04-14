@@ -285,3 +285,10 @@
   - 因為沒有設置的情況下，`remoteEntry.js` 會從和他自己相同的 domain 底下載入資源
   - 也就是當 container 從 `localhost:8081` 載入 marketing 的 `remoteEntry.js` 時，`remoteEntry.js` 也會從 `localhost:8081` 載入其他 marketing 資源
 - 因此習慣性在建立 child app 的 development 環境時，仍會設置 `publicPath` 來確保正確的載入路徑
+
+## Authentication
+
+- auth app 本身不負責權限控管、路由限制或是知道使用者是否登入的資訊
+- 處理 Authentication 的方式有兩種
+  - 所有 Authentication 集中控制於 Container，並將資訊告訴 Sub Apps
+  - 所有的 App 都有一些 Authentication 的 Code，但這樣比較容易寫很多重複的 code
