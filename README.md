@@ -184,3 +184,104 @@
 
 - 想到 Tailwind 好像也可以做類似的事情 XD
 - 可以的話盡量都加，避免未來出現的衝突，命名上如果能統一其實也蠻方便看得出來是哪個專案來的 class name
+
+## Navigation
+
+- 有很多種實作方式，要視專案需求去設計
+- 在這裡會很明顯發現會需要讓 Child App 或與 Container 間做資料的交換
+  - 要記得實作的時候要盡可能的 Generic，避免互相限制使用的 Library 或 Version 甚至不同的實作方式
+  - 一個 Routing Solution 的改變不應迫使調整其他 App 的寫法
+
+### Requirements
+
+- Container 和 SubApps 都需要某些 Routing Features
+  - Navigate 的時候需要 Container 的 Routing Logic 顯示不同的 SubApps
+  - SubApps 中本身會需要自己的 Routing Logic 來做內部的 Navigation
+  - 並非所有的 SubApps 都需要 Routing
+- SubApps 需要有能力增加新的頁面
+  - 新增頁面或 Route 的同時，不需重新 Deploy Container
+  - 也就是 Container 可能只負責決定要顯示哪個 SubApp，剩下的 Routing 由 SubApp 控制
+- 畫面上很有可能需要同時顯示超過兩個的 Micro Frontend
+  - 例如被拆出來成一個獨立 Micro Frontend 的 Sidebar
+- 不應建立自己的 Routing System，應該用現有的 Libraries 做處理
+  - Ex. react-router, vue-router, angular router
+  - 加入一點 Code 做微調是允許的
+- Navigation Features 需要同時存在於 Hosted Mode 或 Isolation Mode
+  - 也就是開發時也要能確實知道自己位於哪個 Path 上
+
+### Solution
+
+1. Container 和 SubApp 各自能有自己使用的 Routing Library，就算交換資訊也會透過 Generic 的方式
+2. Container Routing 只負責決定要顯示哪些 MicroFrontend，而 SubApp MicroFrontend (Ex. Marketing) 會決定要顯示哪個頁面
+   - 如果要同時顯示多個 MicroFrontend，也可以透過相同透過 container app 藉由判斷 root path 顯示不同組合的方式處理
+
+### How Routing Library Works
+
+- 主要分為兩個部分 - History Object 和 Router
+
+#### Router
+
+- 根據使用者造訪的路徑，決定要顯示哪個畫面
+
+#### History Object
+
+- 用來知道使用者目前造訪的路徑，並隨瀏覽進行路徑的修改
+- 畫面上的 `Link` 的作用域會自動去看離他最近的 Router History
+- 通常會分成三種不同的 History
+  - Browser History - 透過 URL 知道使用者目前造訪的 path，也就是 domain 之後的部分，並將這些資訊送去給 Router 決定顯示畫面 (Ex. `react-router-dom` 的 `<BrowserRouter/>`)
+  - Hash History - 查看 URL `#` 後面的部分
+  - Memory/Abstract History - 把當前路徑資訊存於 memory 也就是 code 當中，完全不會透過 Address URL 來得知使用者所在路徑
+- 而在建立 Router 的時候，需要告訴 Library 要使用哪一種 History
+- 不同 Library 對於 History 的實作方式並不相同，如果都使用 Browser History，可能導致透過不同的實作方式同時嘗試修改 URL
+  - 可能導致 Library 之間產生某些更新時機點的 Race Condition，甚至是更新的方式不同
+  - 因此不太會共享操作同一個 Browser History
+- 在 MicroFrontend 的實作中，最常見的方式為
+  - 在 Container 中使用 Browser History，直接讀取和操作 URL
+  - 在 SubApps 中使用 Memory History，各自透過複製一份 URL 到 memory 中進行操作，Navigate 的時候也是操作 Memory 的而不是直接操作 URL
+
+### Syncing Histories
+
+- 首先把 Marketing App 改使用 Memory History，此時發現兩種情境的不同狀況
+  - 從 `localhost:8080/` 點選 Marketing App 中雖然畫面改變了，但 URL 仍停留在原點 (`/`)
+    1. 進入 `localhost:8080/` 後同時產生了兩份 History，Container App 的 Browser History (`/`)，和 Marketing 的 Memory History (`/`)
+       - Browser History 的初始值會看 URL
+       - Memory History 的初始值永遠是 `/`
+    2. 當我們點選 Marketing App 中的 `pricing` 連結時，Marketing 的 Memory History 變成了 `/pricing`，而 Marketing App 中的 Router 也接收到了這個資訊並正確的更新了畫面
+       - 但可想而知，Container App 的 Browser History 並不知道這件事，因此還停留在初始值 (`/`)
+  - 從 `localhost:8080/pricing` 進入畫面，URL 是對的但 Marketing App 仍顯示 Landing Page 而非 Pricing Page
+    1. 進入 `localhost:8080/pricing` 後同時產生了兩份 History，Container App 的 Browser History (`/pricing`)，和 Marketing 的 Memory History (`/`)
+       - 理所當然 Marketing App 顯示的會是對應到 `/` 的 Landing Page 而非對應到 `/pricing` 的 Pricing Page
+    2. 此時如果點選 Marketing App 的 Pricing，更新後的 Memory History 會促使畫面的更新，但當我們重新透過 Navigation 切換 URL 時，仍會遇到一樣的狀況
+- 因此我們很快會遇到兩大問題，如何在 MicroFrontend 之間溝通，並如何同步 Navigation
+  - 當使用者點選了 Container 的 Link 時，需要將資訊傳下去給 Marketing 去更新他的 Memory History，進而更新顯示畫面
+  - 當使用者點選了 Marketing 的 Link 時，需要將資訊傳上去給 Container 去更新他的 Browser History，進而更新顯示畫面
+
+### Communication
+
+- 為了避免專案中的耦合，會使用基礎的方式進行資料交化
+  - Ex. Events、Callbacks
+- 以 Navigation 而言，就是將 `onNavigate` 從 container 傳下去給 marketing，讓 marketing 使用 memory history 進行 navigation 時，呼叫 `onNavigate` 通知 container 更新 browser history
+  - 過程中因為互相偵測改變可能導致無限輪迴，要特別注意，可以透過
+
+## 了解 publicPath 設置
+
+- 前情提要
+  - marketing 中 `webpack.prod.js` 所設置的 `publicPath` 是為讓 marketing 的 `remoteEntry.js` 能找到其對應的資源
+  - container 中 `webpack.prod.js` 所設置的 `publicPath` 則是為了能讓 HTMLWebpackPlugin 能在 `index.html` 引入正確的資料路徑
+- 當我們把兩個頁面設在 `/auth/signin` 和 `/auth/signup/` 時，造訪後會發現 404 找不捯 `/auth/main.js`
+  - 當引入資源如 `<script src="main.js"/>` 時，瀏覽器會常識從當前的 domain + path 去尋找 `main.js`
+    - 也就是當瀏覽 `localhost:8082/auth/signup` 時，瀏覽器會當作要從 `localhost:8082/auth/` 底下嘗試載入 `main.js`
+    - 在最後面加上 `/` 的話則會從 `localhost:8082/auth/signup/` 底下嘗試載入 `main.js`
+  - 而我們的資源實際上是放在 `localhost:8082/` 底下，理所當然找不到
+- 如果在 development 的時候也把 `output.publicPath` 設為 `/` 呢？
+  - 這樣在 Auth Isolation 載入資源時，的確會正確從 `localhost:8082/` 尋找 `main.js`
+  - 但很快會發現這樣的做法不太適用於 Micro Frontend 的架構中
+    1. 在 `localhost:8080` 載入 container
+    2. container 會去 `localhost:8082` 找到 auth 的 `remoteEntry.js` 並了解該如何載入資源
+    3. 這時我們所設置的 `publicPath: "/"` 也會影響到這隻 `remoteEntry.js`，因此會從 `/` 去嘗試載入 auth 的 `main.js`
+       - 但回顧上面的前情提要，現在的 domain + path 是 `localhost:8080`！因此它實際上載入的是 container 的 `main.js` 而不是 auth 的！
+- 正確的修改方式是在 auth development config 中將 `publicPath` 改為完整的 URL，也就是 `http://localhost:8082/`
+- 那為什麼 marketing 沒有設置 `publicPath` 不會有問題？
+  - 因為沒有設置的情況下，`remoteEntry.js` 會從和他自己相同的 domain 底下載入資源
+  - 也就是當 container 從 `localhost:8081` 載入 marketing 的 `remoteEntry.js` 時，`remoteEntry.js` 也會從 `localhost:8081` 載入其他 marketing 資源
+- 因此習慣性在建立 child app 的 development 環境時，仍會設置 `publicPath` 來確保正確的載入路徑

@@ -5,11 +5,10 @@ const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPl
 const commonConfig = require("./webpack.common");
 const packageJson = require("../package.json");
 
-const DEV_PORT = 8081;
+const DEV_PORT = 8082;
 
 const devConfig = {
   mode: "development",
-
   devServer: {
     port: DEV_PORT,
     // historyApiFallback: true
@@ -25,10 +24,10 @@ const devConfig = {
       template: "./public/index.html",
     }),
     new ModuleFederationPlugin({
-      name: "marketing",
+      name: "auth",
       filename: "remoteEntry.js",
       exposes: {
-        "./MarketingApp": "./src/bootstrap",
+        "./AuthApp": "./src/bootstrap",
       },
       shared: packageJson.dependencies,
     }),

@@ -1,9 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { createMemoryHistory, createBrowserHistory } from "history"; // Used by react-router-dom
+import { createMemoryHistory, createBrowserHistory } from "history";
 import App from "./App";
 
-// Define mount function to start app
 const mount = (el, { defaultHistory, initialPath, onNavigate }) => {
   const history =
     defaultHistory ??
@@ -25,7 +24,7 @@ const mount = (el, { defaultHistory, initialPath, onNavigate }) => {
 };
 
 if (process.env.NODE_ENV === "development") {
-  const devRoot = document.querySelector("#_marketing-dev-root");
+  const devRoot = document.querySelector("#_auth-dev-root");
   if (devRoot) mount(devRoot, { defaultHistory: createBrowserHistory() });
 }
 
